@@ -16,40 +16,24 @@ headers = {
     "Content-Type": "application/json"
 }
 
-# ✅ 안내용 메인 루트 (Render용 + 유저 입장 안내용)
 @app.get("/", response_class=HTMLResponse)
-def root():
-    return """
-    <html>
-        <head><title>출석 시스템</title></head>
-        <body style="font-family:sans-serif;">
-            <h2>✅ 자동 출석 시스템 서버가 정상 작동 중입니다</h2>
-            <p><a href="/run-attendance">👉 출석 자동 실행하러 가기</a></p>
-        </body>
-    </html>
-    """
-
-# ✅ 실제 출석 자동화 기능
-@app.api_route("/run-attendance", methods=["GET", "POST"])
-def run_attendance(request: Request):
+def auto_run_root():
     result = run_auto_attendance()
 
-    if request.method == "GET":
-        today = datetime.today()
-        day_str = today.strftime("%Y-%m-%d")
-        weekday_str = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"][today.weekday()]
-        html_content = f"<h2>{day_str} ({weekday_str})</h2>"
-        
-        if not result:
-            html_content += "<p>❗오늘은 수업이 없습니다.</p>"
-        else:
-            for cls in result:
-                student_names = ", ".join(cls['student_names'])
-                html_content += f"<p>📚 {cls['name']} : 👩‍🎓 {student_names}</p>"
-            html_content += "<h3>✅ 출석부 불러오기 성공!</h3>"
-        return HTMLResponse(content=html_content)
-    
-    return JSONResponse(content={"status": "success", "message": "출석 자동화 완료!"})
+    today = datetime.today()
+    day_str = today.strftime("%Y-%m-%d")
+    weekday_str = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"][today.weekday()]
+    html_content = f"<h2>{day_str} ({weekday_str})</h2>"
+
+    if not result:
+        html_content += "<p>❗오늘은 수업이 없습니다.</p>"
+    else:
+        for cls in result:
+            student_names = ", ".join(cls['student_names'])
+            html_content += f"<p>📚 {cls['name']} : 👩‍🎓 {student_names}</p>"
+        html_content += "<h3>✅ 출석부 생성 완료!</h3>"
+
+    return HTMLResponse(content=html_content)
 
 
 def get_today_weekday_korean():
