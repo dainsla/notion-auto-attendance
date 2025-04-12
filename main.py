@@ -1,9 +1,7 @@
-from fastapi import FastAPI
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 import requests
 from datetime import datetime
-import json
 
 app = FastAPI()
 
@@ -18,7 +16,20 @@ headers = {
     "Content-Type": "application/json"
 }
 
-# 메인 확인용 루트
+# ✅ 안내용 메인 루트 (Render용 + 유저 입장 안내용)
+@app.get("/", response_class=HTMLResponse)
+def root():
+    return """
+    <html>
+        <head><title>출석 시스템</title></head>
+        <body style="font-family:sans-serif;">
+            <h2>✅ 자동 출석 시스템 서버가 정상 작동 중입니다</h2>
+            <p><a href="/run-attendance">👉 출석 자동 실행하러 가기</a></p>
+        </body>
+    </html>
+    """
+
+# ✅ 실제 출석 자동화 기능
 @app.api_route("/run-attendance", methods=["GET", "POST"])
 def run_attendance(request: Request):
     result = run_auto_attendance()
@@ -39,7 +50,6 @@ def run_attendance(request: Request):
         return HTMLResponse(content=html_content)
     
     return JSONResponse(content={"status": "success", "message": "출석 자동화 완료!"})
-
 
 
 def get_today_weekday_korean():
