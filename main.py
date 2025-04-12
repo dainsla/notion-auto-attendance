@@ -1,5 +1,6 @@
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import Request
+from fastapi.responses import JSONResponse, HTMLResponse
 import requests
 from datetime import datetime
 import json
@@ -18,24 +19,27 @@ headers = {
 }
 
 # 메인 확인용 루트
-@app.get("/")
-def read_root():
-    return {"message": "서버 연결 성공! 🎉"}
-
-# 출석 자동화 실행용 POST 요청
-@app.post("/run-attendance")
-def run_attendance():
-    try:
-        run_auto_attendance()
-        return JSONResponse(content={"status": "success", "message": "출석 자동화 완료!"})
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
-
-@app.get("/run-attendance")
-@app.post("/run-attendance")
-def run_attendance():
+@app.api_route("/run-attendance", methods=["GET", "POST"])
+def run_attendance(request: Request):
     result = run_auto_attendance()
-    return {"message": "출석 자동화 완료", "details": result}
+
+    if request.method == "GET":
+        today = datetime.today()
+        day_str = today.strftime("%Y-%m-%d")
+        weekday_str = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"][today.weekday()]
+        html_content = f"<h2>{day_str} ({weekday_str})</h2>"
+        
+        if not result:
+            html_content += "<p>❗오늘은 수업이 없습니다.</p>"
+        else:
+            for cls in result:
+                student_names = ", ".join(cls['student_names'])
+                html_content += f"<p>📚 {cls['name']} : 👩‍🎓 {student_names}</p>"
+            html_content += "<h3>✅ 출석부 불러오기 성공!</h3>"
+        return HTMLResponse(content=html_content)
+    
+    return JSONResponse(content={"status": "success", "message": "출석 자동화 완료!"})
+
 
 
 def get_today_weekday_korean():
@@ -73,6 +77,12 @@ def create_attendance_page(student_id, class_id, student_name, class_name):
         }
     }
     response = requests.post("https://api.notion.com/v1/pages", headers=headers, json=data)
+    
+    if response.status_code != 200:
+        print("❌ 생성 실패!")
+        print("Status Code:", response.status_code)
+        print("Response:", response.text)
+
     return response.status_code, response.json()
 
 def get_student_name_map(student_ids):
@@ -96,17 +106,28 @@ def run_auto_attendance():
     classes = get_today_classes()
     if not classes:
         print("⚠️ 오늘 요일에 해당하는 수업이 없습니다.")
-        return
+        return []
     
     all_student_ids = list({sid for c in classes for sid in c["student_ids"]})
     student_name_map = get_student_name_map(all_student_ids)
+
     results = []
     for c in classes:
+        student_names = []
         for student_id in c["student_ids"]:
             student_name = student_name_map.get(student_id, "이름없음")
             status, result = create_attendance_page(student_id, c["id"], student_name, c["name"])
             if status == 200:
                 print(f"✅ {c['name']} - {student_name} 출석 생성 완료")
+                student_names.append(student_name)
             else:
                 print(f"❌ {c['name']} - {student_name} 생성 실패: {status}")
+        results.append({
+            "name": c["name"],
+            "student_names": student_names
+        })
+    return results
 
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
