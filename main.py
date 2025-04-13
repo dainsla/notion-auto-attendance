@@ -22,14 +22,14 @@ auth_router = APIRouter()
 
 @auth_router.get("/auth")
 def auth_start():
-    print(f"REDIRECT_URI: {REDIRECT_URI}")
+    print(f"REDIRECT_URI: {NOTION_REDIRECT_URI}")
     params = {
         "client_id": CLIENT_ID,
         "response_type": "code",
         "owner": "user",
-        "redirect_uri": REDIRECT_URI,  # 여기에서 .env에서 가져온 값 사용
+        "redirect_uri": NOTION_REDIRECT_URI,  # 여기에서 .env에서 가져온 값 사용
     }
-    print("✅ redirect_uri:", REDIRECT_URI)
+    print("✅ redirect_uri:", NOTION_REDIRECT_URI)
     auth_url = f"https://api.notion.com/v1/oauth/authorize?{urlencode(params)}"
     return RedirectResponse(auth_url)
 
@@ -46,7 +46,7 @@ def auth_callback(request: Request):
     data = {
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": REDIRECT_URI,  # .env에서 가져온 REDIRECT_URI 사용
+        "redirect_uri": NOTION_REDIRECT_URI,  # .env에서 가져온 REDIRECT_URI 사용
     }
 
     auth = (CLIENT_ID, CLIENT_SECRET)
