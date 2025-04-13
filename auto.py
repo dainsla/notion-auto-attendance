@@ -1,29 +1,31 @@
 import os
 import requests
-from fastapi import APIRouter
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Request
+from fastapi.responses import RedirectResponse, HTMLResponse
+from urllib.parse import urlencode
 from datetime import datetime
 from dotenv import load_dotenv
 
-
+# .env 파일 로딩
+load_dotenv()
 
 # 🔐 Notion API 정보
 NOTION_TOKEN = "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"
 ATTENDANCE_DB_ID = "1d1fbe500a9e808a9291f31ef415427d"
 CLASS_DB_ID = "1d1fbe500a9e806caf47c677171307ec"
 
-# .env 파일 로딩
-load_dotenv()
-access_token = os.getenv("ACCESS_TOKEN")
+# 라우터 정의
+router = APIRouter()
 
+
+access_token = os.getenv("ACCESS_TOKEN")
 headers = {
     "Authorization": f"Bearer {access_token}",
     "Notion-Version": "2022-06-28",
     "Content-Type": "application/json"
 }
 
-# 라우터 정의
-router = APIRouter()
+
 
 @router.get("/", response_class=HTMLResponse)
 def auto_run_root():
