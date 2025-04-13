@@ -12,7 +12,7 @@ load_dotenv()
 # 환경 변수 로딩
 CLIENT_ID = os.getenv("NOTION_CLIENT_ID")
 CLIENT_SECRET = os.getenv("NOTION_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("REDIRECT_URI")
+NOTION_REDIRECT_URI = os.getenv("NOTION_REDIRECT_URI")
 
 # FastAPI 앱 생성
 app = FastAPI()
