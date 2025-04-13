@@ -29,6 +29,7 @@ def auth_start():
         "owner": "user",
         "redirect_uri": REDIRECT_URI,  # 여기에서 .env에서 가져온 값 사용
     }
+    print("✅ redirect_uri:", REDIRECT_URI)
     auth_url = f"https://api.notion.com/v1/oauth/authorize?{urlencode(params)}"
     return RedirectResponse(auth_url)
 
