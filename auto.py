@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from urllib.parse import urlencode
 from datetime import datetime
 from dotenv import load_dotenv
+import json
 
 # .env 파일 로딩
 load_dotenv()
@@ -20,19 +21,30 @@ CLASS_DB_ID = "1d1fbe500a9e806caf47c677171307ec"
 # 라우터 정의
 router = APIRouter()
 
+def get_access_token(user_id):
+    token_file = f"user_tokens/{user_id}.json"
+    if not os.path.exists(token_file):
+        raise FileNotFoundError(f"🔑 Token file for user '{user_id}' not found.")
 
-access_token = os.getenv("ACCESS_TOKEN")
-headers = {
-    "Authorization": f"Bearer {access_token}",
-    "Notion-Version": "2022-06-28",
-    "Content-Type": "application/json"
-}
+    with open(token_file, "r") as f:
+        token_data = json.load(f)
+        return token_data["access_token"]
 
-print("🔧 Loaded REDIRECT_URI:", REDIRECT_URI)
+def get_headers(user_id):
+    access_token = get_access_token(user_id)
+    return {
+        "Authorization": f"Bearer {access_token}",
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json"
+    }
 
 @router.get("/", response_class=HTMLResponse)
-def auto_run_root():
-    result = run_auto_attendance()
+def auto_run_root(request: Request):
+    user_id = request.query_params.get("user_id")
+    if not user_id:
+        return HTMLResponse("❗ 사용자 정보 없음 (user_id 누락)", status_code=400)
+
+    result = run_auto_attendance(user_id)
 
     today = datetime.today()
     day_str = today.strftime("%Y-%m-%d")
@@ -54,7 +66,7 @@ def get_today_weekday_korean():
     days = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
     return days[datetime.today().weekday()]
 
-def get_today_classes():
+def get_today_classes(headers):
     url = f"https://api.notion.com/v1/databases/{CLASS_DB_ID}/query"
     res = requests.post(url, headers=headers)
     results = res.json().get("results", [])
@@ -114,8 +126,9 @@ def get_student_name_map(student_ids):
     return student_name_map
 
 
-def run_auto_attendance():
-    classes = get_today_classes()
+def run_auto_attendance(user_id):
+    headers = get_headers(user_id)
+    classes = get_today_classes(headers)
     if not classes:
         print("⚠️ 오늘 요일에 해당하는 수업이 없습니다.")
         return []
