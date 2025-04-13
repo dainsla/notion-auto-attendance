@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 from dotenv import load_dotenv
 import os
 import json
+import re
 
 # .env 로드
 load_dotenv()
@@ -24,6 +25,13 @@ app = FastAPI()
 
 # OAuth 인증 라우터 정의
 auth_router = APIRouter()
+
+# Notion DB URL에서 ID 추출하는 함수
+def extract_db_id(notion_url: str) -> str:
+    match = re.search(r'([0-9a-f]{32})', notion_url.replace("-", ""))
+    if match:
+        return match.group(1)
+    raise ValueError("올바른 Notion DB 링크가 아닙니다.")
 
 # 토큰 저장 함수
 def save_token_to_file(user_id, token_data):
@@ -76,7 +84,6 @@ def auth_callback(request: Request):
         user_id = token_data["owner"]["user"]["id"]
         save_token_to_file(user_id, token_data)
 
-        # ✅ 인증 완료 안내 메시지로 링크 출력
         html_content = f"""
         <html>
         <body>
@@ -105,8 +112,10 @@ def setup_page(request: Request):
         <h2>📋 출석 자동화를 위한 DB 설정</h2>
         <form method=\"post\" action=\"/setup\">
             <input type=\"hidden\" name=\"user_id\" value=\"{user_id}\" />
-            <label>🗂 출석부 DB ID:<br/><input type=\"text\" name=\"attendance_db_id\" required></label><br/><br/>
-            <label>📘 수업 DB ID:<br/><input type=\"text\" name=\"class_db_id\" required></label><br/><br/>
+            <label>📘 수업관리 DB 링크:<br/><input type=\"text\" name=\"class_db_id\" required></label><br/>
+            <small>Notion에서 DB를 열고 URL을 복사해서 붙이세요.</small><br/><br/>
+            <label>📂 출석관리 DB 링크:<br/><input type=\"text\" name=\"attendance_db_id\" required></label><br/>
+            <small>Notion에서 출석부 DB URL을 복사해서 붙이세요.</small><br/><br/>
             <button type=\"submit\">📂 저장하기</button>
         </form>
     </body>
@@ -121,12 +130,17 @@ def save_user_config_endpoint(
     attendance_db_id: str = Form(...),
     class_db_id: str = Form(...)
 ):
-    save_user_config(user_id, attendance_db_id, class_db_id)
-    return HTMLResponse(f"""
-    <h2>✅ 설정 저장 완료</h2>
-    <p>이제 다음 링크를 Notion 템플릿 버튼에 붙이면 자동화가 작동합니다:</p>
-    <pre>https://notion-auto-attendance.onrender.com/?user_id={user_id}</pre>
-    """)
+    try:
+        attendance_id = extract_db_id(attendance_db_id)
+        class_id = extract_db_id(class_db_id)
+        save_user_config(user_id, attendance_id, class_id)
+        return HTMLResponse(f"""
+        <h2>✅ 설정 저장 완료</h2>
+        <p>이제 다음 링크를 Notion 템플릿 버튼에 붙이면 자동화가 작동합니다:</p>
+        <pre>https://notion-auto-attendance.onrender.com/?user_id={user_id}</pre>
+        """)
+    except ValueError as e:
+        return HTMLResponse(f"<h3>❌ 오류: {str(e)}</h3>", status_code=400)
 
 # 라우터 등록
 app.include_router(auth_router)
