@@ -1,3 +1,4 @@
+user_tokens/
 .env
 __pycache__/
 *.pyc
