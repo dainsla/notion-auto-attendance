@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 🔐 Notion API 정보
-NOTION_TOKEN = "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"
+# NOTION_TOKEN = "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"
 ATTENDANCE_DB_ID = "1d1fbe500a9e808a9291f31ef415427d"
 CLASS_DB_ID = "1d1fbe500a9e806caf47c677171307ec"
 
