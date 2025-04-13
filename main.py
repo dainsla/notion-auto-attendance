@@ -48,6 +48,7 @@ def auth_start():
 def auth_callback(request: Request):
     code = request.query_params.get("code")
     print(f"👉 인증 코드: {code}")
+    
     if not code:
         return {"error": "Authorization code not found"}
 
@@ -75,7 +76,8 @@ def auth_callback(request: Request):
         user_id = token_data["owner"]["user"]["id"]  # 사용자 고유 ID
         save_token_to_file(user_id, token_data)
 
-        return {"✅ Access Token 발급 및 저장 완료": token_data}
+        # 사용자 ID 포함하여 루트 페이지로 리디렉션
+        return RedirectResponse(f"/?user_id={user_id}")
     else:
         return {"❌ Access Token 발급 실패": response.json()}
 
