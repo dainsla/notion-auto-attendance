@@ -10,9 +10,10 @@ load_dotenv()
 
 router = APIRouter()
 
+# 환경 변수 로딩
 CLIENT_ID = os.getenv("NOTION_CLIENT_ID")
 CLIENT_SECRET = os.getenv("NOTION_CLIENT_SECRET")
-REDIRECT_URI = "https://notion-auto-attendance.onrender.com/auth/callback"
+REDIRECT_URI = os.getenv("REDIRECT_URI")  # .env 파일에서 가져오기
 
 @router.get("/auth")
 def auth_start():
@@ -20,7 +21,7 @@ def auth_start():
         "client_id": CLIENT_ID,
         "response_type": "code",
         "owner": "user",
-        "redirect_uri": REDIRECT_URI,
+        "redirect_uri": REDIRECT_URI,  # 여기에서 .env에서 가져온 값 사용
     }
     auth_url = f"https://api.notion.com/v1/oauth/authorize?{urlencode(params)}"
     return RedirectResponse(auth_url)
@@ -37,7 +38,7 @@ def auth_callback(request: Request):
     data = {
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": REDIRECT_URI,
+        "redirect_uri": REDIRECT_URI,  # .env에서 가져온 REDIRECT_URI 사용
     }
 
     auth = (CLIENT_ID, CLIENT_SECRET)
