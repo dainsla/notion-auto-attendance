@@ -84,17 +84,21 @@ def get_student_name_map(student_ids):
     for student_id in student_ids:
         url = f"https://api.notion.com/v1/pages/{student_id}"
         res = requests.get(url, headers=headers)
-        props = res.json().get("properties", {})
+        data = res.json()
+        props = data.get("properties", {})
+
+        name_property = props.get("학생이름", {})
+        title_list = name_property.get("title", [])
         student_name = "이름없음"
-        for key, value in props.items():
-            if value.get("type") == "title":
-                title_list = value.get("title", [])
-                if title_list:
-                    texts = [t.get("text", {}).get("content", "") for t in title_list]
-                    student_name = "".join(texts).strip()
-                    break
+
+        if title_list:
+            texts = [t.get("text", {}).get("content", "") for t in title_list]
+            student_name = "".join(texts).strip()
+
         student_name_map[student_id] = student_name
+
     return student_name_map
+
 
 def run_auto_attendance():
     classes = get_today_classes()
