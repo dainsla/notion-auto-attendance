@@ -84,7 +84,7 @@ def get_today_classes(headers):
             today_classes.append({"id": class_id, "name": class_name, "student_ids": student_ids})
     return today_classes
 
-def create_attendance_page(student_id, class_id, student_name, class_name):
+def create_attendance_page(student_id, class_id, student_name, class_name, headers):
     today_str = datetime.today().strftime("%Y.%m.%d")
     title = f"{today_str} / {student_name}"
     data = {
@@ -105,7 +105,7 @@ def create_attendance_page(student_id, class_id, student_name, class_name):
 
     return response.status_code, response.json()
 
-def get_student_name_map(student_ids):
+def get_student_name_map(student_ids, headers):
     student_name_map = {}
     for student_id in student_ids:
         url = f"https://api.notion.com/v1/pages/{student_id}"
@@ -134,14 +134,14 @@ def run_auto_attendance(user_id):
         return []
     
     all_student_ids = list({sid for c in classes for sid in c["student_ids"]})
-    student_name_map = get_student_name_map(all_student_ids)
+    student_name_map = get_student_name_map(all_student_ids, headers)
 
     results = []
     for c in classes:
         student_names = []
         for student_id in c["student_ids"]:
             student_name = student_name_map.get(student_id, "이름없음")
-            status, result = create_attendance_page(student_id, c["id"], student_name, c["name"])
+            status, result = create_attendance_page(student_id, c["id"], student_name, c["name"], headers)
             if status == 200:
                 print(f"✅ {c['name']} - {student_name} 출석 생성 완료")
                 student_names.append(student_name)
