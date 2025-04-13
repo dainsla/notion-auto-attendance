@@ -1,13 +1,11 @@
 import os
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
 import requests
+from fastapi import APIRouter
+from fastapi.responses import HTMLResponse
 from datetime import datetime
-from auth import router as auth_router
 from dotenv import load_dotenv
 
-app = FastAPI()
-app.include_router(auth_router)
+
 
 # 🔐 Notion API 정보
 NOTION_TOKEN = "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"
@@ -24,7 +22,10 @@ headers = {
     "Content-Type": "application/json"
 }
 
-@app.get("/", response_class=HTMLResponse)
+# 라우터 정의
+router = APIRouter()
+
+@router.get("/", response_class=HTMLResponse)
 def auto_run_root():
     result = run_auto_attendance()
 
@@ -134,6 +135,3 @@ def run_auto_attendance():
         })
     return results
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
