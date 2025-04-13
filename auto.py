@@ -45,9 +45,15 @@ def get_headers(user_id):
 
 # 사용자 설정 가져오기
 def get_user_config(user_id):
+    user_id = str(user_id).strip()
+    print(f"🔍 [get_user_config] 요청된 user_id: {user_id}")
+    
     config = config_collection.find_one({"user_id": user_id})
+    print(f"🔍 [get_user_config] 조회된 설정: {config}")
+    
     if not config:
-        raise ValueError(f"❗ 설정 정보가 없습니다. 먼저 /setup 을 완료하세요.")
+        raise ValueError("❗ 설정 정보가 없습니다. 먼저 /setup 을 완료하세요.")
+    
     return config["class_db_id"], config["attendance_db_id"]
 
 # 루트 라우터 - 출석 자동화 실행
