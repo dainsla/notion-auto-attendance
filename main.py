@@ -35,6 +35,7 @@ def auth_start():
 @auth_router.get("/auth/callback")
 def auth_callback(request: Request):
     code = request.query_params.get("code")
+    print(f"👉 인증 코드: {code}")
     if not code:
         return {"error": "Authorization code not found"}
 
