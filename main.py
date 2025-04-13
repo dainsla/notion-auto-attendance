@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, Request
 from fastapi.responses import RedirectResponse
+from auto import router as auto_router
 import requests
 from urllib.parse import urlencode
 from dotenv import load_dotenv
@@ -24,6 +25,9 @@ app = FastAPI()
 
 # OAuth 인증 라우터 정의
 auth_router = APIRouter()
+
+app.include_router(auth_router)   # 👉 인증 관련 라우터 (/auth, /auth/callback)
+app.include_router(auto_router)   # 👉 자동 출석 관련 라우터 (/)
 
 def save_token_to_file(user_id, token_data):
     os.makedirs("user_tokens", exist_ok=True)
