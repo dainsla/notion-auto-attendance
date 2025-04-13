@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import os
 import json
 import re
+from pymongo import MongoClient
 
 # .env 로드
 load_dotenv()
@@ -15,40 +16,48 @@ load_dotenv()
 CLIENT_ID = os.getenv("NOTION_CLIENT_ID")
 CLIENT_SECRET = os.getenv("NOTION_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("NOTION_REDIRECT_URI")
+MONGODB_URI = os.getenv("MONGODB_URI")
 
 # 환경 변수 검사
-if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI:
+if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI or not MONGODB_URI:
     raise ValueError("Missing required environment variables")
+
+# MongoDB 연결
+client = MongoClient(MONGODB_URI)
+db = client["autoroll"]
+collection = db["user_settings"]
 
 # FastAPI 앱 생성
 app = FastAPI()
-
-# OAuth 인증 라우터 정의
 auth_router = APIRouter()
 
-# Notion DB URL에서 ID 추출하는 함수
+# Notion DB 링크에서 ID 추출
 def extract_db_id(notion_url: str) -> str:
     match = re.search(r'([0-9a-f]{32})', notion_url.replace("-", ""))
     if match:
         return match.group(1)
     raise ValueError("올바른 Notion DB 링크가 아닙니다.")
 
-# 토큰 저장 함수
+# 토큰 저장 (파일 방식 유지)
 def save_token_to_file(user_id, token_data):
     os.makedirs("user_tokens", exist_ok=True)
     file_path = f"user_tokens/{user_id}.json"
     with open(file_path, "w") as f:
         json.dump(token_data, f, indent=2)
 
-# 사용자 설정 저장 함수
-def save_user_config(user_id, attendance_db_id, class_db_id):
-    os.makedirs("user_configs", exist_ok=True)
-    config = {
-        "attendance_db_id": attendance_db_id,
-        "class_db_id": class_db_id
-    }
-    with open(f"user_configs/{user_id}.json", "w") as f:
-        json.dump(config, f, indent=2)
+# MongoDB에 사용자 설정 저장
+def save_user_db_links(user_id, class_db_id, attendance_db_id):
+    collection.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "class_db_id": class_db_id,
+            "attendance_db_id": attendance_db_id
+        }},
+        upsert=True
+    )
+
+def get_user_db_links(user_id):
+    return collection.find_one({"user_id": user_id})
 
 # 인증 시작
 @auth_router.get("/auth")
@@ -99,7 +108,7 @@ def auth_callback(request: Request):
     except Exception as e:
         return {"error": str(e)}
 
-# 사용자 설정 입력 폼
+# 설정 폼
 @auth_router.get("/setup", response_class=HTMLResponse)
 def setup_page(request: Request):
     user_id = request.query_params.get("user_id")
@@ -110,20 +119,27 @@ def setup_page(request: Request):
     <html>
     <body>
         <h2>📋 출석 자동화를 위한 DB 설정</h2>
-        <form method=\"post\" action=\"/setup\">
-            <input type=\"hidden\" name=\"user_id\" value=\"{user_id}\" />
-            <label>📘 수업관리 DB 링크:<br/><input type=\"text\" name=\"class_db_id\" required></label><br/>
-            <small>Notion에서 DB를 열고 URL을 복사해서 붙이세요.</small><br/><br/>
-            <label>📂 출석관리 DB 링크:<br/><input type=\"text\" name=\"attendance_db_id\" required></label><br/>
-            <small>Notion에서 출석부 DB URL을 복사해서 붙이세요.</small><br/><br/>
-            <button type=\"submit\">📂 저장하기</button>
+        <form method="post" action="/setup">
+            <input type="hidden" name="user_id" value="{user_id}" />
+        
+            <label>📘 <b>수업목록 DB 링크</b>:<br/>
+                <input type="text" name="class_db_id" required>
+            </label><br/>
+            <small>Notion에서 <b>수업목록 DB</b>를 열고 URL을 복사해서 붙이세요.</small><br/><br/>
+        
+            <label>📘 <b>출석 및 과제 DB 링크</b>:<br/>
+                <input type="text" name="attendance_db_id" required>
+            </label><br/>
+            <small>Notion에서 <b>출석 및 과제 DB</b>를 열고 URL을 복사해서 붙이세요.</small><br/><br/>
+        
+            <button type="submit">💾 저장하기</button>
         </form>
     </body>
     </html>
     """
     return HTMLResponse(content=html)
 
-# 사용자 설정 저장 처리
+# 설정 저장
 @auth_router.post("/setup")
 def save_user_config_endpoint(
     user_id: str = Form(...),
@@ -133,7 +149,7 @@ def save_user_config_endpoint(
     try:
         attendance_id = extract_db_id(attendance_db_id)
         class_id = extract_db_id(class_db_id)
-        save_user_config(user_id, attendance_id, class_id)
+        save_user_db_links(user_id, class_id, attendance_id)
         return HTMLResponse(f"""
         <h2>✅ 설정 저장 완료</h2>
         <p>이제 다음 링크를 Notion 템플릿 버튼에 붙이면 자동화가 작동합니다:</p>
