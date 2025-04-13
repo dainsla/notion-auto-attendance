@@ -1,14 +1,23 @@
 import os
 import requests
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, FastAPI
 from fastapi.responses import RedirectResponse
 from urllib.parse import urlencode
 from dotenv import load_dotenv
+from auto import router as auto_router
+
 
 # .env 로딩 (로컬 개발 시)
 load_dotenv()
 
+# FastAPI 앱 생성
+app = FastAPI()
+
+# 라우터 정의
 router = APIRouter()
+
+# auto.py의 라우터를 main.py에 포함
+app.include_router(auto_router)
 
 # 환경 변수 로딩
 CLIENT_ID = os.getenv("NOTION_CLIENT_ID")
