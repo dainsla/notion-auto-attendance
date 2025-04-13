@@ -4,6 +4,7 @@ import requests
 from urllib.parse import urlencode
 from dotenv import load_dotenv
 import os
+import json
 
 
 # .env 로딩
@@ -14,11 +15,21 @@ CLIENT_ID = os.getenv("NOTION_CLIENT_ID")
 CLIENT_SECRET = os.getenv("NOTION_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("NOTION_REDIRECT_URI")
 
+# 환경 변수 검사
+if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI:
+    raise ValueError("Missing required environment variables")
+
 # FastAPI 앱 생성
 app = FastAPI()
 
 # OAuth 인증 라우터 정의
 auth_router = APIRouter()
+
+def save_token_to_file(user_id, token_data):
+    os.makedirs("user_tokens", exist_ok=True)
+    file_path = f"user_tokens/{user_id}.json"
+    with open(file_path, "w") as f:
+        json.dump(token_data, f, indent=2)
 
 @auth_router.get("/auth")
 def auth_start():
@@ -50,13 +61,19 @@ def auth_callback(request: Request):
     }
 
     auth = (CLIENT_ID, CLIENT_SECRET)
-    response = requests.post(token_url, headers=headers, json=data, auth=auth)
+    try:
+        response = requests.post(token_url, headers=headers, json=data, auth=auth)
+        response.raise_for_status()  # 응답 상태 코드가 2xx가 아니면 예외를 던짐
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Request failed: {e}"}
+    
 
     if response.status_code == 200:
         token_data = response.json()
-        # ✅ 토큰을 파일에 저장 (DB로 대체 가능)
-        with open("user_tokens.json", "w") as f:
-            json.dump(token_data, f, indent=2)
+
+        # 저장 함수 호출
+        user_id = token_data["owner"]["user"]["id"]  # 사용자 고유 ID
+        save_token_to_file(user_id, token_data)
 
         return {"✅ Access Token 발급 및 저장 완료": token_data}
     else:
