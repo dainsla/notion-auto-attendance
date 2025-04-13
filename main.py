@@ -54,13 +54,13 @@ def auth_callback(request: Request):
 
     if response.status_code == 200:
         token_data = response.json()
-        return {
-            "✅ Access Token 발급 완료": token_data
-        }
+        # ✅ 토큰을 파일에 저장 (DB로 대체 가능)
+        with open("user_tokens.json", "w") as f:
+            json.dump(token_data, f, indent=2)
+
+        return {"✅ Access Token 발급 및 저장 완료": token_data}
     else:
-        return {
-            "❌ Access Token 발급 실패": response.json()
-        }
+        return {"❌ Access Token 발급 실패": response.json()}
 
 # 메인 애플리케이션에 라우터 포함
 app.include_router(auth_router)
