@@ -7,20 +7,13 @@ from datetime import datetime
 from dotenv import load_dotenv
 import json
 
-# .env 파일 로딩
+# .env 파일 로드
 load_dotenv()
-
-# 🔐 Notion API 정보
-# NOTION_TOKEN = "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"
-REDIRECT_URI = os.getenv("NOTION_REDIRECT_URI")
-CLIENT_ID = os.getenv("NOTION_CLIENT_ID")
-CLIENT_SECRET = os.getenv("NOTION_CLIENT_SECRET")
-ATTENDANCE_DB_ID = "1d1fbe500a9e808a9291f31ef415427d"
-CLASS_DB_ID = "1d1fbe500a9e806caf47c677171307ec"
 
 # 라우터 정의
 router = APIRouter()
 
+# 사용자 토큰 가져오기
 def get_access_token(user_id):
     token_file = f"user_tokens/{user_id}.json"
     if not os.path.exists(token_file):
@@ -30,6 +23,8 @@ def get_access_token(user_id):
         token_data = json.load(f)
         return token_data["access_token"]
 
+# 토큰 해당 헤더스
+
 def get_headers(user_id):
     access_token = get_access_token(user_id)
     return {
@@ -37,6 +32,11 @@ def get_headers(user_id):
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json"
     }
+
+# 사용자 설정 가져오기
+def get_user_config(user_id):
+    with open(f"user_configs/{user_id}.json", "r") as f:
+        return json.load(f)
 
 @router.get("/", response_class=HTMLResponse)
 def auto_run_root(request: Request):
@@ -61,13 +61,12 @@ def auto_run_root(request: Request):
 
     return HTMLResponse(content=html_content)
 
-
 def get_today_weekday_korean():
     days = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
     return days[datetime.today().weekday()]
 
-def get_today_classes(headers):
-    url = f"https://api.notion.com/v1/databases/{CLASS_DB_ID}/query"
+def get_today_classes(headers, class_db_id):
+    url = f"https://api.notion.com/v1/databases/{class_db_id}/query"
     res = requests.post(url, headers=headers)
     results = res.json().get("results", [])
     today_classes = []
@@ -84,11 +83,11 @@ def get_today_classes(headers):
             today_classes.append({"id": class_id, "name": class_name, "student_ids": student_ids})
     return today_classes
 
-def create_attendance_page(student_id, class_id, student_name, class_name, headers):
+def create_attendance_page(student_id, class_id, student_name, class_name, headers, attendance_db_id):
     today_str = datetime.today().strftime("%Y.%m.%d")
     title = f"{today_str} / {student_name}"
     data = {
-        "parent": { "database_id": ATTENDANCE_DB_ID },
+        "parent": { "database_id": attendance_db_id },
         "properties": {
             "제목": { "title": [{"text": { "content": title }}] },
             "날짜": { "date": { "start": datetime.today().date().isoformat() }},
@@ -97,7 +96,7 @@ def create_attendance_page(student_id, class_id, student_name, class_name, heade
         }
     }
     response = requests.post("https://api.notion.com/v1/pages", headers=headers, json=data)
-    
+
     if response.status_code != 200:
         print("❌ 생성 실패!")
         print("Status Code:", response.status_code)
@@ -125,14 +124,17 @@ def get_student_name_map(student_ids, headers):
 
     return student_name_map
 
-
 def run_auto_attendance(user_id):
     headers = get_headers(user_id)
-    classes = get_today_classes(headers)
+    config = get_user_config(user_id)
+    attendance_db_id = config["attendance_db_id"]
+    class_db_id = config["class_db_id"]
+
+    classes = get_today_classes(headers, class_db_id)
     if not classes:
         print("⚠️ 오늘 요일에 해당하는 수업이 없습니다.")
         return []
-    
+
     all_student_ids = list({sid for c in classes for sid in c["student_ids"]})
     student_name_map = get_student_name_map(all_student_ids, headers)
 
@@ -141,7 +143,7 @@ def run_auto_attendance(user_id):
         student_names = []
         for student_id in c["student_ids"]:
             student_name = student_name_map.get(student_id, "이름없음")
-            status, result = create_attendance_page(student_id, c["id"], student_name, c["name"], headers)
+            status, result = create_attendance_page(student_id, c["id"], student_name, c["name"], headers, attendance_db_id)
             if status == 200:
                 print(f"✅ {c['name']} - {student_name} 출석 생성 완료")
                 student_names.append(student_name)
@@ -152,4 +154,3 @@ def run_auto_attendance(user_id):
             "student_names": student_names
         })
     return results
-
