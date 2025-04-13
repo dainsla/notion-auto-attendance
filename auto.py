@@ -25,7 +25,7 @@ headers = {
     "Content-Type": "application/json"
 }
 
-
+print("🔧 Loaded REDIRECT_URI:", REDIRECT_URI)
 
 @router.get("/", response_class=HTMLResponse)
 def auto_run_root():
