@@ -19,8 +19,8 @@ MONGODB_URI = os.getenv("MONGODB_URI")
 
 # MongoDB 연결
 mongo_client = MongoClient(MONGODB_URI)
-db = mongo_client["notion_attendance"]
-config_collection = db["user_configs"]
+db = mongo_client["autoroll"]
+config_collection = db["user_settings"]
 
 # 라우터 정의
 router = APIRouter()
