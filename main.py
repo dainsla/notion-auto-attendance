@@ -22,6 +22,7 @@ auth_router = APIRouter()
 
 @auth_router.get("/auth")
 def auth_start():
+    print(f"REDIRECT_URI: {REDIRECT_URI}")
     params = {
         "client_id": CLIENT_ID,
         "response_type": "code",
