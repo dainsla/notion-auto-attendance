@@ -22,12 +22,9 @@ if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI:
 
 # FastAPI 앱 생성
 app = FastAPI()
-
 # OAuth 인증 라우터 정의
 auth_router = APIRouter()
 
-app.include_router(auth_router)   # 👉 인증 관련 라우터 (/auth, /auth/callback)
-app.include_router(auto_router)   # 👉 자동 출석 관련 라우터 (/)
 
 def save_token_to_file(user_id, token_data):
     os.makedirs("user_tokens", exist_ok=True)
@@ -37,24 +34,20 @@ def save_token_to_file(user_id, token_data):
 
 @auth_router.get("/auth")
 def auth_start():
-    print(f"REDIRECT_URI: {REDIRECT_URI}")
     params = {
         "client_id": CLIENT_ID,
         "response_type": "code",
         "owner": "user",
         "redirect_uri": REDIRECT_URI,  # 여기에서 .env에서 가져온 값 사용
     }
-    print("✅ redirect_uri:", REDIRECT_URI)
-    auth_url = f"https://api.notion.com/v1/oauth/authorize?{urlencode(params)}"
-    return RedirectResponse(auth_url)
+    url = f"https://api.notion.com/v1/oauth/authorize?{urlencode(params)}"
+    return RedirectResponse(url)
 
 @auth_router.get("/auth/callback")
 def auth_callback(request: Request):
     code = request.query_params.get("code")
-    print(f"👉 인증 코드: {code}")
-    
     if not code:
-        return {"error": "Authorization code not found"}
+        return {"error": "No code"}
 
     # Access token 요청
     token_url = "https://api.notion.com/v1/oauth/token"
@@ -65,22 +58,16 @@ def auth_callback(request: Request):
         "redirect_uri": REDIRECT_URI,  # .env에서 가져온 REDIRECT_URI 사용
     }
 
-    auth = (CLIENT_ID, CLIENT_SECRET)
     try:
-        response = requests.post(token_url, headers=headers, json=data, auth=auth)
-        response.raise_for_status()  # 응답 상태 코드가 2xx가 아니면 예외를 던짐
-    except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {e}"}
-    
-
-    if response.status_code == 200:
-        token_data = response.json()
-
-        # 저장 함수 호출
-        user_id = token_data["owner"]["user"]["id"]  # 사용자 고유 ID
+        res = requests.post(token_url, headers=headers, json=data, auth=(CLIENT_ID, CLIENT_SECRET))
+        res.raise_for_status()
+        token_data = res.json()
+        user_id = token_data["owner"]["user"]["id"]
         save_token_to_file(user_id, token_data)
-
-        # 사용자 ID 포함하여 루트 페이지로 리디렉션
         return RedirectResponse(f"/?user_id={user_id}")
-    else:
-        return {"❌ Access Token 발급 실패": response.json()}
+    except Exception as e:
+        return {"error": str(e)}
+    
+    
+app.include_router(auth_router)   # 👉 인증 관련 라우터 (/auth, /auth/callback)
+app.include_router(auto_router)   # 👉 자동 출석 관련 라우터 (/)
