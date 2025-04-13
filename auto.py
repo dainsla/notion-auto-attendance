@@ -3,7 +3,7 @@ import requests
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse, HTMLResponse
 from urllib.parse import urlencode
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import json
 from pymongo import MongoClient
@@ -85,8 +85,9 @@ def auto_run_root(request: Request):
 
 # 오늘 요일 확인
 def get_today_weekday_korean():
+    today = datetime.utcnow() + timedelta(hours=9)
     days = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
-    return days[datetime.today().weekday()]
+    return days[today.weekday()]
 
 # 수업 가져오기
 def get_today_classes(headers, class_db_id):
