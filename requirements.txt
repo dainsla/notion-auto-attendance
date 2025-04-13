@@ -3,3 +3,4 @@ uvicorn==0.34.0
 requests
 python-dotenv
 python-multipart
+pymongo
